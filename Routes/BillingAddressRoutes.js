@@ -30,5 +30,6 @@ router.put("/update/:id", authMiddleware,
 router.delete("/delete/:id", authMiddleware,
     billingAddressController.remove);
 router.get("/all", billingAddressController.getAll)
+router.get("/list",authMiddleware, billingAddressController.getList)
 router.get("/:id", billingAddressController.getOne);
 module.exports = router;

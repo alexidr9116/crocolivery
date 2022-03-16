@@ -10,32 +10,40 @@ const uploadInvoiceImages = async (req, res, next) => {
   try {
     const files = req.files;
     const subImages = [];
-    
-    for(let i = 0 ; i<files.length; i+=1){
+
+    for (let i = 0; i < files.length; i += 1) {
       subImages.push(files[i].filename);
     }
-    res.status(200).json({ success: true, message: 'Upload multi-files success',subImages });
+    res.status(200).json({ success: true, message: 'Upload multi-files success', subImages });
   }
   catch (err) {
     res.status(400).json({ success: false, message: 'Invalid data' });
   }
 
-} 
-const insert = async(req,res,next)=>{
-  const instance = new invoiceModel({
-    recipient:req.body.recipient,
-    invoiceName:`INV-${Date.now()}`,
-    items:req.body.items,
-    status:req.body.status,
-    maker:objectID(req.user.id)
-  });
-  instance.save(err=>{
-    if(err)
-      return Response.err(res,err);
-    return Response.ok(res,`Invoice is saved and status is ${instance.status} `);
-  })
 }
- 
+const insert = async (req, res, next) => {
+  if (req.body.items.length > 0) {
+
+    const instance = new invoiceModel({
+      recipient: req.body.recipient,
+      invoiceName: `INV-${Date.now()}`,
+      items: req.body.items,
+      status: req.body.status,
+      maker: objectID(req.user.id),
+      totalPrice: req.body.totalPrice,
+    });
+    instance.save(err => {
+      if (err)
+        return Response.err(res, err);
+      return Response.ok(res, `Invoice is saved and status is ${instance.status} `, instance);
+    })
+  }
+  else {
+    return Response.err(res, "Please fill the item list");
+  }
+
+}
+
 const update = async (req, res, next) => {
   var id = req.params.id;
 
@@ -99,36 +107,44 @@ const getList = (req, res, next) => {
     return new Promise(async (resolve, reject) => {
       let result = await invoiceModel.aggregate([
         {
-          $match:{
-            maker:objectID(req.user._id)
+          $match: {
+            maker: objectID(req.user._id)
           }
         },
         {
-          $lookup:{
-            from:'billingaddresses',
-            localField:'recipient',
-            foreignField:'_id',
-            as:'billingAddress'
+          $lookup: {
+            from: 'billingaddresses',
+            localField: 'recipient',
+            foreignField: '_id',
+            as: 'billingAddress'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'maker',
+            foreignField: '_id',
+            as: 'invoiceFrom'
+          }
+        },
+        {
+          $unwind: {
+            "path": "$invoiceFrom", "preserveNullAndEmptyArrays": true
+          }
+        },
+        {
+          $unwind: {
+            "path": "$billingAddress", "preserveNullAndEmptyArrays": true
           }
         }
       ])
       if (result && result.length > 0) {
-        let i = 1, limit = result.length ;
-        result.forEach(async (item)=>{
-          const user = await userModel.findById(item.maker);
-          item.invoiceFrom = user;
-          if(i == limit){
-            return resolve(
-              Response.ok(res, "data retrieved successfully.", result)
-            );
-          }
-          i++; 
-        });
+        Response.ok(res, "data retrieved successfully.", result)
       } else {
         return resolve(Response.ok(res, "data not found."));
       }
     });
-    
+
   } catch (error) {
     Response.error(res, error);
   }

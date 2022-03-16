@@ -79,6 +79,25 @@ const getAll = (req, res, next) => {
   }
 };
  
+// need user side
+const getList = (req, res, next) => {
+  try {
+    return new Promise(async (resolve, reject) => {
+      await BillingAddressModel.find({maker:objectID(req.user._id)}).then((result) => {
+        if (result && result.length > 0) {
+          return resolve(
+            Response.ok(res, "data retrieved successfully.", result)
+          );
+        } else {
+          return resolve(Response.ok(res, "data not found."),[]);
+        }
+      });
+    });
+  } catch (error) {
+
+    Response.error(res, error);
+  }
+};
 const remove = (req, res, next) => {
    
   try {
@@ -125,5 +144,6 @@ module.exports = {
   update,
   getAll, 
   remove,
+  getList,
   getOne,
 };
